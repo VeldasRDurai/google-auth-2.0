@@ -6,27 +6,18 @@ const {OAuth2Client} = require('google-auth-library');
 const CLIENT_ID = process.env.CLIENT_ID ;
 const client = new OAuth2Client(CLIENT_ID);
 
-async function verify( token ) {
-    const ticket = await client.verifyIdToken({
-        idToken: token,
-        audience: CLIENT_ID,
-    });
+const verify = async (token) => {
+    const ticket = await client.verifyIdToken({ idToken: token , audience: CLIENT_ID });
     const payload = ticket.getPayload();
-    // const userid = payload['sub'];
-    console.log(payload);
     return payload;
 }
 
-function cheakAuthenticatied( req , res , next ){
-    let token = req.cookies['session-token'];
-    verify(token)
-    .then( ( payload ) => {
-        req.user = payload;
-        next();
-    })
-    .catch( e => {
-        res.redirect('/log-in');
-    });
+const cheakAuthenticatied = async ( req , res , next ) => {
+    try {
+        let token = req.cookies['session-token'];
+        req.user = verify(token);
+        next()
+    } catch ( e ) { res.redirect('/log-in'); }
 }
 
 const PORT = process.env.PORT || 3000 ;
@@ -43,15 +34,14 @@ app.get('/log-in', (req,res) => {
     res.render('log-in');
 });
 
-app.post('/log-in' , (req,res) => {
-    let token = req.body.token;
-    console.log(token);
-    verify(token)
-    .then( () => {
+app.post('/log-in' , async (req,res) => {
+    try {
+        let token = req.body.token;
+        // console.log(token);
+        await verify(token);
         res.cookie('session-token',token);
         res.send('success');
-    })
-    .catch(console.error);
+    } catch (e) { res.send(e); }
 });
 
 app.get('/profile', cheakAuthenticatied , (req,res) => {
